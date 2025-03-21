@@ -5,26 +5,23 @@
   <title>Mini Minerador</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
     body {
       margin: 0;
       padding: 20px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       background: #f5f5f5;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
       min-height: 100vh;
+      text-align: center;
     }
 
     h2 {
-      margin-top: 20px;
       color: #333;
       font-size: 1.8rem;
+      margin: 20px 0 10px;
     }
 
     p {
@@ -35,13 +32,19 @@
     img {
       width: 160px;
       max-width: 80%;
-      cursor: pointer;
       transition: transform 0.1s ease;
       margin-top: 20px;
+      cursor: pointer;
     }
 
     img:active {
-      transform: scale(0.9);
+      transform: scale(0.92);
+    }
+
+    img.desativado {
+      opacity: 0.4;
+      pointer-events: none;
+      transform: none !important;
     }
 
     #feedback {
@@ -49,26 +52,80 @@
       font-size: 1rem;
       color: green;
     }
+
+    #cliques-restantes {
+      font-size: 1rem;
+      margin-top: 10px;
+      color: #555;
+    }
   </style>
 </head>
 <body>
 
   <h2>🪙 Minerador de Bitcoin</h2>
   <p><strong>Satoshis:</strong> <span id="satoshis">0</span></p>
+  <p id="cliques-restantes">Cliques restantes hoje: <span id="restantes">100</span></p>
 
   <img src="bitcoin.png" id="minerar" alt="Minerar">
   <div id="feedback"></div>
 
   <script>
+    const LIMITE_DIARIO = 100;
     let satoshis = 0;
     let hashrate = 1;
+
     const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
     const user_id = user?.id ?? "teste_user";
 
-    document.getElementById("minerar").onclick = () => {
+    const feedback = document.getElementById("feedback");
+    const imgMinerar = document.getElementById("minerar");
+    const restantesSpan = document.getElementById("restantes");
+
+    function getDataHoje() {
+      return new Date().toISOString().split("T")[0];
+    }
+
+    function getCliquesHoje() {
+      const hoje = getDataHoje();
+      const dataSalva = localStorage.getItem("dataUltimoClique");
+      let cliques = parseInt(localStorage.getItem("cliquesHoje")) || 0;
+
+      if (dataSalva !== hoje) {
+        cliques = 0;
+        localStorage.setItem("cliquesHoje", "0");
+        localStorage.setItem("dataUltimoClique", hoje);
+      }
+
+      return cliques;
+    }
+
+    function atualizarEstadoBotao() {
+      const cliques = getCliquesHoje();
+      const restantes = LIMITE_DIARIO - cliques;
+      restantesSpan.textContent = restantes;
+
+      if (restantes <= 0) {
+        imgMinerar.classList.add("desativado");
+      } else {
+        imgMinerar.classList.remove("desativado");
+      }
+    }
+
+    imgMinerar.onclick = () => {
+      if (imgMinerar.classList.contains("desativado")) return;
+
+      let cliques = getCliquesHoje();
+      if (cliques >= LIMITE_DIARIO) {
+        atualizarEstadoBotao();
+        return;
+      }
+
+      cliques++;
+      localStorage.setItem("cliquesHoje", cliques);
+      localStorage.setItem("dataUltimoClique", getDataHoje());
+
       const chance = 0.05 * hashrate;
       let ganhos = 0;
-      const feedback = document.getElementById("feedback");
 
       if (Math.random() < chance) {
         ganhos = Math.floor(Math.random() * 5 + 1) * hashrate;
@@ -76,10 +133,11 @@
         document.getElementById("satoshis").textContent = satoshis;
         feedback.textContent = `+${ganhos} satoshis minerados!`;
       } else {
-        feedback.textContent = ""; // Sem mensagem negativa
+        feedback.textContent = ""; // sem mensagem de falha
       }
 
-      fetch("https://seu-dominio.com/minerar", {
+      // Envia log para o backend
+      fetch("https://seu-backend.com/minerar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,7 +147,12 @@
           hashrate
         })
       });
+
+      atualizarEstadoBotao();
     };
+
+    // Inicializa estado ao carregar
+    atualizarEstadoBotao();
   </script>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>

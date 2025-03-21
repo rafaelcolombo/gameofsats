@@ -2,171 +2,96 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Bitcoin Miner Gamificado</title>
+  <title>Mini Minerador</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
+      margin: 0;
       padding: 20px;
-      text-align: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
     }
 
-    h1 {
-      margin-bottom: 30px;
+    h2 {
+      margin-top: 20px;
+      color: #333;
+      font-size: 1.8rem;
     }
 
-    .botao-minerar {
-      width: 150px;
+    p {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+
+    img {
+      width: 160px;
+      max-width: 80%;
       cursor: pointer;
       transition: transform 0.1s ease;
       margin-top: 20px;
     }
 
-    .botao-minerar.pressionado {
-      transform: scale(0.92);
+    img:active {
+      transform: scale(0.9);
     }
 
-    .botao-minerar.desativado {
-      opacity: 0.4;
-      pointer-events: none;
-      transform: none !important;
-    }
-
-    button {
-      margin-top: 20px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    p {
-      font-size: 18px;
+    #feedback {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: green;
     }
   </style>
 </head>
 <body>
 
-  <h1>🪙 Bitcoin Miner (Gamificado)</h1>
+  <h2>🪙 Minerador de Bitcoin</h2>
+  <p><strong>Satoshis:</strong> <span id="satoshis">0</span></p>
 
-  <p><strong>Hashrate:</strong> <span id="hashrate">1</span></p>
-  <p><strong>Satoshis minerados:</strong> <span id="satoshis">0</span></p>
-  <p><strong>Cliques restantes hoje:</strong> <span id="cliques-restantes">100</span></p>
-
-  <!-- Imagem de mineração com tooltip dinâmico -->
-  <img 
-    src="bitcoin.png" 
-    alt="Minerar" 
-    class="botao-minerar"
-    id="botaoMinerar"
-    title="Clique para tentar minerar satoshis"
-    onclick="minerar()" 
-    onmousedown="pressionar(this)" 
-    onmouseup="soltar(this)" 
-    ontouchstart="pressionar(this)" 
-    ontouchend="soltar(this)"
-  >
-
-  <br>
-
-  <button onclick="comprarUpgrade()">Comprar Upgrade (100 satoshis)</button>
+  <img src="bitcoin.png" id="minerar" alt="Minerar">
+  <div id="feedback"></div>
 
   <script>
-    let satoshis = parseInt(localStorage.getItem("satoshis")) || 0;
-    let hashrate = parseInt(localStorage.getItem("hashrate")) || 1;
-    const LIMITE_CLIQUES_DIARIOS = 100;
+    let satoshis = 0;
+    let hashrate = 1;
+    const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const user_id = user?.id ?? "teste_user";
 
-    function getDataHoje() {
-      const hoje = new Date();
-      return hoje.toISOString().split("T")[0];
-    }
-
-    function getCliquesHoje() {
-      const hoje = getDataHoje();
-      const dataSalva = localStorage.getItem("dataUltimoClique");
-      let cliques = parseInt(localStorage.getItem("cliquesHoje")) || 0;
-
-      if (dataSalva !== hoje) {
-        cliques = 0;
-        localStorage.setItem("cliquesHoje", "0");
-        localStorage.setItem("dataUltimoClique", hoje);
-      }
-
-      return cliques;
-    }
-
-    function minerar() {
-      let cliques = getCliquesHoje();
-
-      if (cliques >= LIMITE_CLIQUES_DIARIOS) {
-        alert("Você atingiu o limite de 100 minerações hoje. Volte amanhã!");
-        return;
-      }
-
-      cliques++;
-      localStorage.setItem("cliquesHoje", cliques);
-      localStorage.setItem("dataUltimoClique", getDataHoje());
-
+    document.getElementById("minerar").onclick = () => {
       const chance = 0.05 * hashrate;
+      let ganhos = 0;
+      const feedback = document.getElementById("feedback");
+
       if (Math.random() < chance) {
-        const ganhos = Math.floor(Math.random() * 5 + 1) * hashrate;
+        ganhos = Math.floor(Math.random() * 5 + 1) * hashrate;
         satoshis += ganhos;
-        alert(`Você minerou ${ganhos} satoshis!`);
+        document.getElementById("satoshis").textContent = satoshis;
+        feedback.textContent = `+${ganhos} satoshis minerados!`;
       } else {
-        alert("Nada dessa vez... continue minerando!");
+        feedback.textContent = ""; // Sem mensagem negativa
       }
 
-      salvarProgresso();
-      atualizarTela();
-    }
-
-    function comprarUpgrade() {
-      const custo = 100;
-      if (satoshis >= custo) {
-        hashrate++;
-        satoshis -= custo;
-        alert("Upgrade comprado! Hashrate aumentado.");
-        salvarProgresso();
-        atualizarTela();
-      } else {
-        alert("Satoshis insuficientes para o upgrade.");
-      }
-    }
-
-    function salvarProgresso() {
-      localStorage.setItem("satoshis", satoshis);
-      localStorage.setItem("hashrate", hashrate);
-    }
-
-    function atualizarTela() {
-      document.getElementById("hashrate").textContent = hashrate;
-      document.getElementById("satoshis").textContent = satoshis;
-
-      const cliques = getCliquesHoje();
-      const restantes = LIMITE_CLIQUES_DIARIOS - cliques;
-      document.getElementById("cliques-restantes").textContent = restantes;
-
-      const botao = document.getElementById("botaoMinerar");
-
-      if (restantes <= 0) {
-        botao.classList.add("desativado");
-        botao.title = "Você já minerou 100x hoje. Volte amanhã!";
-      } else {
-        botao.classList.remove("desativado");
-        botao.title = "Clique para tentar minerar satoshis";
-      }
-    }
-
-    function pressionar(img) {
-      if (!img.classList.contains("desativado")) {
-        img.classList.add('pressionado');
-      }
-    }
-
-    function soltar(img) {
-      img.classList.remove('pressionado');
-    }
-
-    atualizarTela(); // Inicializar tela ao carregar
+      fetch("https://seu-dominio.com/minerar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id,
+          timestamp: new Date().toISOString(),
+          ganhos,
+          hashrate
+        })
+      });
+    };
   </script>
 
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </body>
 </html>
